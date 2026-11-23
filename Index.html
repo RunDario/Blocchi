@@ -1,0 +1,1665 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Block Puzzle Piemontese</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Rubik:wght@700;900&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      font-family: 'Fredoka', sans-serif;
+      background: radial-gradient(circle at 50% 18%, #1e3268 0%, #0d1636 55%, #050817 100%);
+      color: #ffffff;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      touch-action: none;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Sfondo stellato arcade non bloccante */
+    .bg-glow {
+      position: fixed;
+      inset: 0;
+      background-image:
+        radial-gradient(2px 2px at 14% 22%, rgba(255,255,255,0.28) 50%, transparent 100%),
+        radial-gradient(2px 2px at 84% 16%, rgba(100,200,255,0.32) 50%, transparent 100%),
+        radial-gradient(3px 3px at 72% 78%, rgba(255,180,100,0.22) 50%, transparent 100%),
+        radial-gradient(2px 2px at 22% 82%, rgba(180,120,255,0.28) 50%, transparent 100%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Bottoni 3D Arcade */
+    .arcade-btn {
+      background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+      border: 2px solid #93c5fd;
+      box-shadow: 0 4px 0 #1e3a8a, 0 6px 12px rgba(0, 0, 0, 0.45);
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.15s ease;
+    }
+    .arcade-btn:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #1e3a8a, 0 2px 6px rgba(0, 0, 0, 0.45);
+    }
+
+    .arcade-btn-amber {
+      background: linear-gradient(180deg, #f59e0b 0%, #b45309 100%);
+      border: 2px solid #fde68a;
+      box-shadow: 0 4px 0 #78350f, 0 6px 12px rgba(0, 0, 0, 0.45);
+    }
+    .arcade-btn-amber:active {
+      box-shadow: 0 1px 0 #78350f, 0 2px 6px rgba(0, 0, 0, 0.45);
+    }
+
+    /* Cornice Scacchiera 8x8 */
+    .board-frame {
+      background: linear-gradient(180deg, #0b1a3c 0%, #071026 100%);
+      border: 3px solid #2563eb;
+      box-shadow:
+        0 0 28px rgba(37, 99, 235, 0.4),
+        inset 0 0 16px rgba(0, 0, 0, 0.88);
+      border-radius: 16px;
+      padding: 6px;
+      position: relative;
+    }
+
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
+      gap: 3px;
+      width: 100%;
+      height: 100%;
+    }
+
+    .cell {
+      background: rgba(18, 38, 82, 0.75);
+      border-radius: 6px;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.58);
+      position: relative;
+      transition: background-color 0.1s ease;
+    }
+
+    /* Blocchi Gemma 3D Lucidi */
+    .gem-block {
+      width: 100%;
+      height: 100%;
+      border-radius: 6px;
+      position: relative;
+      box-shadow:
+        inset 0 3px 2px rgba(255, 255, 255, 0.58),
+        inset 0 -3px 3px rgba(0, 0, 0, 0.45),
+        inset 3px 0 2px rgba(255, 255, 255, 0.28),
+        inset -3px 0 2px rgba(0, 0, 0, 0.25),
+        0 2px 4px rgba(0, 0, 0, 0.42);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .gem-block::after {
+      content: '';
+      position: absolute;
+      inset: 18%;
+      border-radius: 3px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.03) 60%, rgba(0,0,0,0.2) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      pointer-events: none;
+    }
+
+    .gem-red    { background: linear-gradient(135deg, #ff5252 0%, #d50000 100%); }
+    .gem-orange { background: linear-gradient(135deg, #ffab40 0%, #ff6d00 100%); }
+    .gem-yellow { background: linear-gradient(135deg, #ffff00 0%, #ffab00 100%); }
+    .gem-green  { background: linear-gradient(135deg, #69f0ae 0%, #00c853 100%); }
+    .gem-blue   { background: linear-gradient(135deg, #448aff 0%, #2962ff 100%); }
+    .gem-purple { background: linear-gradient(135deg, #e040fb 0%, #aa00ff 100%); }
+    .gem-pink   { background: linear-gradient(135deg, #ff80ab 0%, #f50057 100%); }
+
+    /* Variante Bomba 3x3 con miccia e contatore */
+    .bomb-badge {
+      position: relative;
+      z-index: 2;
+      width: 78%;
+      height: 78%;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #4b5563 0%, #111827 72%, #000000 100%);
+      border: 2px solid #ef4444;
+      box-shadow: 0 0 8px #ef4444, inset 0 2px 3px rgba(255,255,255,0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: bombPulse 1.05s infinite alternate;
+    }
+    .bomb-badge::before {
+      content: '';
+      position: absolute;
+      top: -5px;
+      right: 2px;
+      width: 5px;
+      height: 6px;
+      background: #f59e0b;
+      border-radius: 2px;
+      transform: rotate(25deg);
+    }
+    .bomb-spark {
+      position: absolute;
+      top: -8px;
+      right: -1px;
+      width: 6px;
+      height: 6px;
+      background: #fef08a;
+      border-radius: 50%;
+      box-shadow: 0 0 6px #f97316, 0 0 11px #ef4444;
+    }
+    .bomb-timer {
+      font-family: 'Rubik', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 900;
+      color: #fca5a5;
+      text-shadow: 0 1px 2px #000;
+    }
+
+    @keyframes bombPulse {
+      from { transform: scale(0.92); box-shadow: 0 0 5px #ef4444; }
+      to   { transform: scale(1.07); box-shadow: 0 0 14px #f87171; }
+    }
+
+    /* Anteprima fantasma e illuminazione righe/colonne complete */
+    .ghost-valid {
+      opacity: 0.48;
+      transform: scale(0.95);
+    }
+    .line-highlight {
+      filter: brightness(1.48) saturate(1.35);
+      box-shadow: 0 0 14px rgba(255, 255, 255, 0.9);
+    }
+
+    @keyframes popClear {
+      0%   { transform: scale(1); opacity: 1; filter: brightness(2.2); }
+      50%  { transform: scale(1.24); opacity: 0.88; }
+      100% { transform: scale(0); opacity: 0; }
+    }
+    .clearing {
+      animation: popClear 0.34s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    /* Banner Fumetto Animato Frasi Piemontesi (multilinea per frasi lunghe) */
+    .dialect-banner {
+      position: fixed;
+      top: 38%;
+      left: 50%;
+      width: 92vw;
+      max-width: 440px;
+      transform: translate(-50%, -50%) scale(0.3) rotate(-6deg);
+      z-index: 65;
+      pointer-events: none;
+      opacity: 0;
+      text-align: center;
+      padding: 10px 14px;
+      border-radius: 22px;
+      background: radial-gradient(circle, rgba(30, 27, 75, 0.86) 0%, rgba(15, 23, 42, 0.0) 85%);
+    }
+    .dialect-banner.show {
+      animation: comicPop 1.9s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+    .dialect-text {
+      font-family: 'Rubik', sans-serif;
+      font-weight: 900;
+      font-size: clamp(1.45rem, 6.2vw, 2.7rem);
+      line-height: 1.12;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: linear-gradient(180deg, #fff700 0%, #ff9100 55%, #ff3d00 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 3px 0 #3b0764) drop-shadow(0 7px 14px rgba(0, 0, 0, 0.92));
+      -webkit-text-stroke: 1.5px #1e1b4b;
+      word-wrap: break-word;
+    }
+    .dialect-sub {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #fde047;
+      text-shadow: 0 2px 5px rgba(0,0,0,0.95);
+      margin-top: 4px;
+    }
+
+    @keyframes comicPop {
+      0%   { opacity: 0; transform: translate(-50%, -40%) scale(0.3) rotate(-7deg); }
+      15%  { opacity: 1; transform: translate(-50%, -52%) scale(1.12) rotate(2.5deg); }
+      28%  { opacity: 1; transform: translate(-50%, -50%) scale(1.0) rotate(-1.5deg); }
+      82%  { opacity: 1; transform: translate(-50%, -55%) scale(1.02) rotate(0deg); }
+      100% { opacity: 0; transform: translate(-50%, -74%) scale(0.86) rotate(2deg); }
+    }
+
+    /* Slot vassoio inferiore */
+    .slot {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: grab;
+      touch-action: none;
+      border-radius: 12px;
+      overflow: hidden;
+      transition: background-color 0.15s ease;
+    }
+    .slot:active {
+      cursor: grabbing;
+      background-color: rgba(59, 130, 246, 0.16);
+    }
+
+    /* Proxy trascinamento (posizionato dall'angolo in alto a sinistra per allineamento 1:1) */
+    #drag-proxy {
+      position: fixed;
+      left: 0;
+      top: 0;
+      pointer-events: none;
+      z-index: 100;
+      display: none;
+      filter: drop-shadow(0 14px 18px rgba(0,0,0,0.68));
+    }
+
+    /* Particelle esplosione */
+    #particles-layer {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 60;
+      overflow: hidden;
+    }
+    .spark-particle {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      pointer-events: none;
+      animation: particleFly 0.58s ease-out forwards;
+    }
+    @keyframes particleFly {
+      0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+      100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; }
+    }
+
+    @keyframes boardShake {
+      0%, 100% { transform: translate(0, 0); }
+      20% { transform: translate(-7px, 5px); }
+      40% { transform: translate(7px, -5px); }
+      60% { transform: translate(-5px, -4px); }
+      80% { transform: translate(5px, 4px); }
+    }
+    .shake {
+      animation: boardShake 0.36s ease-in-out;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-glow"></div>
+  <div id="particles-layer"></div>
+
+  <!-- Barra Superiore: Audio, Prova Voce, Punteggio + Coppa Record, Ruota e Riavvio -->
+  <header class="relative z-20 w-full max-w-md px-2.5 pt-2.5 pb-1 flex items-center justify-between gap-1">
+    <div class="flex items-center gap-1">
+      <button type="button" id="btn-sound" class="arcade-btn w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-white" title="Attiva/Disattiva Audio">
+        <svg id="icon-sound-on" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14"/>
+        </svg>
+        <svg id="icon-sound-off" class="w-5 h-5 hidden text-red-200" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6"/>
+        </svg>
+      </button>
+
+      <button type="button" id="btn-test-voice" class="arcade-btn arcade-btn-amber h-9 sm:h-10 px-2 rounded-xl flex items-center justify-center gap-1 text-[11px] sm:text-xs font-extrabold text-white tracking-tight" title="Prova subito la voce">
+        <span>🗣️</span>
+        <span>PROVA VOCE</span>
+      </button>
+    </div>
+
+    <!-- Punteggio Attuale & Trofeo Record -->
+    <div class="flex items-center gap-1.5 sm:gap-2.5 bg-slate-900/80 border border-blue-500/45 px-2.5 sm:px-3.5 py-1 rounded-2xl shadow-lg">
+      <span id="score-display" class="text-lg sm:text-2xl font-bold text-white tracking-wide">0</span>
+
+      <div class="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center">
+        <svg viewBox="0 0 64 64" class="w-full h-full drop-shadow-[0_2px_6px_rgba(250,204,21,0.65)]">
+          <defs>
+            <linearGradient id="goldGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#fef08a"/>
+              <stop offset="50%" stop-color="#facc15"/>
+              <stop offset="100%" stop-color="#ca8a04"/>
+            </linearGradient>
+          </defs>
+          <path d="M18 10h28v16c0 9-6 16-14 16s-14-7-14-16V10z" fill="url(#goldGrad)" stroke="#a16207" stroke-width="2"/>
+          <path d="M18 14h-7c-2 0-3 2-3 4 0 6 4 11 10 11" fill="none" stroke="#facc15" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M46 14h7c2 0 3 2 3 4 0 6-4 11-10 11" fill="none" stroke="#facc15" stroke-width="3.5" stroke-linecap="round"/>
+          <rect x="28" y="42" width="8" height="9" fill="url(#goldGrad)"/>
+          <rect x="20" y="51" width="24" height="6" rx="2" fill="#eab308" stroke="#854d0e" stroke-width="1.5"/>
+          <polygon points="32,17 34.5,22.5 40.5,23 36,27 37.5,33 32,29.8 26.5,33 28,27 23.5,23 29.5,22.5" fill="#fffbeb"/>
+        </svg>
+      </div>
+
+      <span id="highscore-display" class="text-lg sm:text-2xl font-bold text-amber-400 tracking-wide">0</span>
+    </div>
+
+    <div class="flex items-center gap-1">
+      <button type="button" id="btn-rotate" class="arcade-btn w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-cyan-200" title="Ruota i pezzi nel vassoio">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-3-6.7L21 8m0-5v5h-5"/>
+        </svg>
+      </button>
+
+      <button type="button" id="btn-restart" class="arcade-btn w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-white" title="Nuova Partita">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Barra Stato Audio con feedback visivo immediato -->
+  <div id="audio-status-badge" class="relative z-10 text-[11px] sm:text-xs font-bold text-amber-200 bg-blue-950/80 border border-blue-400/35 px-3 py-0.5 rounded-full pointer-events-none transition-colors">
+    🔇 Tocca un blocco o "PROVA VOCE" per sbloccare audio
+  </div>
+
+  <!-- Area Centrale: Scacchiera 8x8 -->
+  <main class="relative z-10 flex-1 w-full flex flex-col items-center justify-center px-3 py-1">
+    <div id="board-wrapper" class="board-frame aspect-square w-[min(88vw,51vh,420px)]">
+      <div id="grid" class="grid-container"></div>
+    </div>
+  </main>
+
+  <!-- Vassoio Inferiore: 3 Pezzi da Trascinare -->
+  <footer class="relative z-20 w-full max-w-md px-3 pb-3 pt-1">
+    <div id="tray" class="grid grid-cols-3 gap-2 h-28 sm:h-32 items-center justify-items-center bg-slate-900/70 border border-blue-500/40 rounded-2xl p-2 shadow-inner">
+      <div class="slot" data-slot="0"></div>
+      <div class="slot" data-slot="1"></div>
+      <div class="slot" data-slot="2"></div>
+    </div>
+  </footer>
+
+  <!-- Proxy Fluttuante durante il Trascinamento -->
+  <div id="drag-proxy"></div>
+
+  <!-- Banner Fumetto Animato per Frasi Piemontesi -->
+  <div id="dialect-banner" class="dialect-banner">
+    <div id="dialect-text" class="dialect-text">BOIA FAUS!</div>
+    <div id="dialect-sub" class="dialect-sub">+100 PUNTI!</div>
+  </div>
+
+  <!-- Schermata Game Over ("Ma cöt fas?!") -->
+  <div id="gameover-modal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm hidden flex-col items-center justify-center p-6 text-center" style="pointer-events: none;">
+    <div class="bg-gradient-to-b from-slate-800 to-slate-950 border-2 border-amber-400/85 rounded-3xl p-7 max-w-sm w-full shadow-[0_0_45px_rgba(251,191,36,0.4)]">
+      <div class="text-sm uppercase tracking-widest text-amber-300 font-bold mb-1">Nessuna mossa possibile</div>
+
+      <h2 class="text-4xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 via-orange-400 to-red-500 drop-shadow-[0_3px_0_rgba(0,0,0,0.85)] my-3" style="font-family: 'Rubik', sans-serif;">
+        MA CÖT FAS?!
+      </h2>
+
+      <p class="text-slate-300 text-sm mb-5">Hai incastrato tutti i blocchi!</p>
+
+      <div class="bg-slate-900/90 rounded-2xl p-4 mb-6 border border-slate-700 flex justify-around">
+        <div>
+          <div class="text-xs text-slate-400 uppercase">Punteggio</div>
+          <div id="final-score" class="text-2xl font-bold text-white">0</div>
+        </div>
+        <div class="w-px bg-slate-700"></div>
+        <div>
+          <div class="text-xs text-slate-400 uppercase">Record</div>
+          <div id="final-highscore" class="text-2xl font-bold text-amber-400">0</div>
+        </div>
+      </div>
+
+      <button type="button" id="btn-play-again" class="w-full py-3.5 rounded-2xl font-extrabold text-xl tracking-wide text-slate-950 bg-gradient-to-b from-yellow-300 to-amber-500 border-2 border-yellow-100 shadow-[0_5px_0_#b45309] active:translate-y-1 active:shadow-[0_1px_0_#b45309] transition-all cursor-pointer">
+        RIGIOCA
+      </button>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * CONFIGURAZIONE DEL GIOCO E FRASI DIALETTALI PIEMONTESI
+     */
+    const GRID_SIZE = 8;
+    const COLORS = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink'];
+
+    // Tutte le 7 esclamazioni piemontesi richieste al completamento di linee
+    const LINE_CLEAR_PHRASES = [
+      {
+        display: "Te föl o fürb!",
+        phonetic: "Te föl o fürb?",
+        syllables: [
+          { vowel: 'e', pitch: 185, dur: 0.12 },
+          { vowel: 'o', pitch: 235, dur: 0.16 },
+          { vowel: 'o', pitch: 200, dur: 0.12 },
+          { vowel: 'u', pitch: 265, dur: 0.21 }
+        ]
+      },
+      {
+        display: "Brau piciu!",
+        phonetic: "Bràu pìciu!",
+        syllables: [
+          { vowel: 'a', pitch: 200, dur: 0.16 },
+          { vowel: 'u', pitch: 225, dur: 0.13 },
+          { vowel: 'i', pitch: 260, dur: 0.16 },
+          { vowel: 'u', pitch: 175, dur: 0.17 }
+        ]
+      },
+      {
+        display: "Zes ün Napoli!",
+        phonetic: "Zes ün Nàpoli!",
+        syllables: [
+          { vowel: 'e', pitch: 210, dur: 0.14 },
+          { vowel: 'u', pitch: 230, dur: 0.13 },
+          { vowel: 'a', pitch: 265, dur: 0.16 },
+          { vowel: 'o', pitch: 215, dur: 0.12 },
+          { vowel: 'i', pitch: 180, dur: 0.16 }
+        ]
+      },
+      {
+        display: "Il piciu a ciula e la merda a spüsa!",
+        phonetic: "Il pìciu a ciùla e la mèrda a spüsa!",
+        syllables: [
+          { vowel: 'i', pitch: 185, dur: 0.10 },
+          { vowel: 'i', pitch: 235, dur: 0.13 },
+          { vowel: 'u', pitch: 210, dur: 0.11 },
+          { vowel: 'a', pitch: 195, dur: 0.09 },
+          { vowel: 'u', pitch: 255, dur: 0.14 },
+          { vowel: 'a', pitch: 215, dur: 0.11 },
+          { vowel: 'e', pitch: 190, dur: 0.09 },
+          { vowel: 'a', pitch: 205, dur: 0.09 },
+          { vowel: 'e', pitch: 245, dur: 0.14 },
+          { vowel: 'a', pitch: 205, dur: 0.11 },
+          { vowel: 'a', pitch: 190, dur: 0.09 },
+          { vowel: 'u', pitch: 265, dur: 0.15 },
+          { vowel: 'a', pitch: 170, dur: 0.16 }
+        ]
+      }
+    ];
+
+    // Frase di sconfitta (Game Over)
+    const GAME_OVER_PHRASE = {
+      display: "Ma cöt fas?!",
+      phonetic: "Ma cöt fas?!",
+      syllables: [
+        { vowel: 'a', pitch: 210, dur: 0.15 },
+        { vowel: 'o', pitch: 175, dur: 0.18 },
+        { vowel: 'a', pitch: 135, dur: 0.28 }
+      ]
+    };
+
+    // Forme dei blocchi
+    const SHAPES = [
+      [[1]],                                      // 1x1
+      [[1, 1]],                                   // 1x2
+      [[1], [1]],                                 // 2x1
+      [[1, 1, 1]],                                // 1x3
+      [[1], [1], [1]],                            // 3x1
+      [[1, 1, 1, 1]],                             // 1x4
+      [[1], [1], [1], [1]],                       // 4x1
+      [[1, 1, 1, 1, 1]],                          // 1x5
+      [[1], [1], [1], [1], [1]],                  // 5x1
+      [[1, 1], [1, 1]],                           // 2x2
+      [[1, 1, 1], [1, 1, 1], [1, 1, 1]],          // 3x3
+      [[1, 0], [1, 0], [1, 1]],                   // L
+      [[0, 1], [0, 1], [1, 1]],                   // J
+      [[1, 1, 1], [1, 0, 0]],                     // L orizzontale
+      [[1, 1, 1], [0, 0, 1]],                     // J orizzontale
+      [[1, 1], [1, 0]],                           // Angolo 2x2
+      [[1, 1], [0, 1]],                           // Angolo 2x2 specchiato
+      [[1, 1, 1], [0, 1, 0]],                     // T
+      [[0, 1, 0], [1, 1, 1]],                     // T rovesciata
+      [[1, 1, 0], [0, 1, 1]],                     // Z
+      [[0, 1, 1], [1, 1, 0]]                      // S
+    ];
+
+    /**
+     * STATO DEL GIOCO E RIFERIMENTI DOM
+     */
+    let board = [];
+    let trayPieces = [null, null, null];
+    let score = 0;
+    let highScore = Number(localStorage.getItem('blockPuzzlePiemonteHigh') || 0);
+    let soundEnabled = true;
+    let lastPhraseIndex = -1;
+
+    let dragging = {
+      active: false,
+      slotIndex: -1,
+      piece: null,
+      cellW: 36,
+      cellH: 36,
+      stepX: 39,
+      stepY: 39,
+      gapX: 3,
+      gapY: 3,
+      targetRow: null,
+      targetCol: null,
+      isTouch: false
+    };
+
+    const gridEl = document.getElementById('grid');
+    const boardWrapperEl = document.getElementById('board-wrapper');
+    const scoreEl = document.getElementById('score-display');
+    const highScoreEl = document.getElementById('highscore-display');
+    const slotEls = Array.from(document.querySelectorAll('.slot'));
+    const dragProxyEl = document.getElementById('drag-proxy');
+    const dialectBannerEl = document.getElementById('dialect-banner');
+    const dialectTextEl = document.getElementById('dialect-text');
+    const dialectSubEl = document.getElementById('dialect-sub');
+    const gameoverModalEl = document.getElementById('gameover-modal');
+    const particlesLayerEl = document.getElementById('particles-layer');
+    const audioStatusBadgeEl = document.getElementById('audio-status-badge');
+
+    /**
+     * SISTEMA VOCALE DOPPIO IBRIDO:
+     * 1) Web Speech API (speechSynthesis) ottimizzata per iOS/Android/Desktop
+     * 2) Sintetizzatore Formantico Vocalico (Web Audio API) garantito al 100%
+     *    se speechSynthesis è bloccato dall'iframe o non parte entro 250ms.
+     */
+    let audioCtx = null;
+    let audioUnlocked = false;
+    let selectedItalianVoice = null;
+    window._activeUtterance = null;
+
+    function updateAudioStatusBadge(text, ok = true) {
+      if (!audioStatusBadgeEl) return;
+      audioStatusBadgeEl.textContent = text;
+      if (ok) {
+        audioStatusBadgeEl.classList.remove('text-amber-200', 'border-blue-400/35');
+        audioStatusBadgeEl.classList.add('text-emerald-300', 'border-emerald-400/50');
+      } else {
+        audioStatusBadgeEl.classList.remove('text-emerald-300', 'border-emerald-400/50');
+        audioStatusBadgeEl.classList.add('text-amber-200', 'border-blue-400/35');
+      }
+    }
+
+    function loadItalianVoice() {
+      if (!('speechSynthesis' in window)) return;
+      try {
+        const voices = window.speechSynthesis.getVoices();
+        if (!voices || voices.length === 0) return;
+
+        const preferred = ['alice', 'luca', 'federica', 'google italiano', 'elsa', 'cosimo'];
+        const itVoices = voices.filter(v => v.lang && v.lang.toLowerCase().replace('_', '-').startsWith('it'));
+
+        for (const name of preferred) {
+          const found = itVoices.find(v => v.name.toLowerCase().includes(name));
+          if (found) {
+            selectedItalianVoice = found;
+            return;
+          }
+        }
+        if (itVoices.length > 0) {
+          selectedItalianVoice = itVoices[0];
+        }
+      } catch (e) {}
+    }
+
+    if ('speechSynthesis' in window) {
+      loadItalianVoice();
+      window.speechSynthesis.onvoiceschanged = loadItalianVoice;
+    }
+
+    function unlockAllAudio() {
+      try {
+        if (!audioCtx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) audioCtx = new AudioContextClass();
+        }
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        if (audioCtx) {
+          // Impulso silenzioso per sbloccare hardware audio su iOS Safari
+          const buffer = audioCtx.createBuffer(1, 1, 22050);
+          const source = audioCtx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(audioCtx.destination);
+          source.start(0);
+        }
+      } catch (e) {}
+
+      if ('speechSynthesis' in window) {
+        try {
+          loadItalianVoice();
+          if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+          }
+          if (!audioUnlocked) {
+            const warmUtterance = new SpeechSynthesisUtterance(' ');
+            warmUtterance.lang = 'it-IT';
+            warmUtterance.volume = 0.01;
+            window._activeUtterance = warmUtterance;
+            window.speechSynthesis.speak(warmUtterance);
+          }
+        } catch (e) {}
+      }
+
+      if (!audioUnlocked) {
+        audioUnlocked = true;
+        if (soundEnabled) {
+          updateAudioStatusBadge("🔊 Audio OK • Voce piemontese attiva", true);
+        }
+      }
+    }
+
+    // Sblocco immediato al primissimo tocco o clic
+    ['touchstart', 'pointerdown', 'mousedown', 'click'].forEach(evt => {
+      window.addEventListener(evt, unlockAllAudio, { once: true, passive: true });
+    });
+
+    /**
+     * SINTETIZZATORE VOCALE FORMANTICO (Web Audio API Fallback/Rinforzo)
+     * Genera formanti vocaliche (F1, F2) con vibrato e prosodia sillabica
+     * così la frase si sente scandita anche negli iframe dove TTS è disabilitato.
+     */
+    function speakFormantSynth(phraseObj, isGameOver = false) {
+      if (!soundEnabled) return;
+      unlockAllAudio();
+      if (!audioCtx) return;
+
+      try {
+        const syllables = phraseObj.syllables || [
+          { vowel: 'o', pitch: 190, dur: 0.14 },
+          { vowel: 'a', pitch: 230, dur: 0.16 },
+          { vowel: 'u', pitch: 170, dur: 0.18 }
+        ];
+
+        // Frequenze formanti (F1, F2) per le vocali italiane/piemontesi
+        const formants = {
+          a: [780, 1280],
+          e: [480, 1950],
+          i: [310, 2350],
+          o: [460, 880],
+          u: [330, 780]
+        };
+
+        let t = audioCtx.currentTime + 0.02;
+
+        syllables.forEach((syl, index) => {
+          const dur = syl.dur || 0.14;
+          const baseFreq = isGameOver ? syl.pitch * 0.82 : syl.pitch;
+          const [f1Freq, f2Freq] = formants[syl.vowel] || formants.a;
+
+          // Sorgente glottica (onda a dente di sega calda)
+          const osc = audioCtx.createOscillator();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(baseFreq, t);
+          osc.frequency.exponentialRampToValueAtTime(
+            isGameOver ? baseFreq * 0.86 : baseFreq * (index === syllables.length - 1 ? 0.90 : 1.07),
+            t + dur
+          );
+
+          // Due filtri passa-banda per simulare la cavità orale (F1 e F2)
+          const f1 = audioCtx.createBiquadFilter();
+          f1.type = 'bandpass';
+          f1.frequency.setValueAtTime(f1Freq, t);
+          f1.Q.setValueAtTime(5.5, t);
+
+          const f2 = audioCtx.createBiquadFilter();
+          f2.type = 'bandpass';
+          f2.frequency.setValueAtTime(f2Freq, t);
+          f2.Q.setValueAtTime(6.5, t);
+
+          const gain = audioCtx.createGain();
+          gain.gain.setValueAtTime(0.001, t);
+          gain.gain.linearRampToValueAtTime(0.28, t + 0.02);
+          gain.gain.setValueAtTime(0.24, t + dur * 0.72);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+
+          osc.connect(f1);
+          osc.connect(f2);
+          f1.connect(gain);
+          f2.connect(gain);
+          gain.connect(audioCtx.destination);
+
+          osc.start(t);
+          osc.stop(t + dur + 0.01);
+
+          t += dur + 0.028; // Piccola pausa sillabica naturale
+        });
+      } catch (e) {}
+    }
+
+    /**
+     * MOTORE VOCALE DOPPIO:
+     * Prova SpeechSynthesis; se non disponibile, senza voci o non parte entro 250ms,
+     * attiva immediatamente il sintetizzatore formantico Web Audio API.
+     */
+    function speakDialectPhrase(phraseObj, isGameOver = false) {
+      if (!soundEnabled) return;
+      unlockAllAudio();
+
+      const hasSpeechAPI = 'speechSynthesis' in window;
+      if (!hasSpeechAPI) {
+        speakFormantSynth(phraseObj, isGameOver);
+        return;
+      }
+
+      loadItalianVoice();
+      const voices = window.speechSynthesis.getVoices();
+
+      let speechStarted = false;
+      let fallbackTimer = null;
+
+      const triggerFallbackOnce = () => {
+        if (!speechStarted) {
+          speechStarted = true;
+          speakFormantSynth(phraseObj, isGameOver);
+        }
+      };
+
+      // Timer di sicurezza da 250ms: se l'iframe o iOS non avvia il parlato reale, parte subito la voce formantica
+      fallbackTimer = setTimeout(triggerFallbackOnce, 250);
+
+      try {
+        const startTTS = () => {
+          if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+          }
+
+          const utterance = new SpeechSynthesisUtterance(phraseObj.phonetic);
+          utterance.lang = 'it-IT';
+          utterance.rate = 0.96;
+          utterance.pitch = isGameOver ? 0.88 : 1.08;
+          utterance.volume = 1.0;
+
+          if (selectedItalianVoice) {
+            utterance.voice = selectedItalianVoice;
+          }
+
+          utterance.onstart = () => {
+            speechStarted = true;
+            if (fallbackTimer) clearTimeout(fallbackTimer);
+          };
+
+          utterance.onerror = () => {
+            if (fallbackTimer) clearTimeout(fallbackTimer);
+            triggerFallbackOnce();
+          };
+
+          utterance.onend = () => {
+            window._activeUtterance = null;
+          };
+
+          window._activeUtterance = utterance;
+          window.speechSynthesis.speak(utterance);
+
+          // Se dopo 150ms non ci sono voci caricate, avvia comunque un rinforzo formantico leggero
+          if (!voices || voices.length === 0) {
+            setTimeout(() => {
+              if (!window.speechSynthesis.speaking) {
+                triggerFallbackOnce();
+              }
+            }, 150);
+          }
+        };
+
+        if (window.speechSynthesis.speaking) {
+          window.speechSynthesis.cancel();
+          setTimeout(startTTS, 40);
+        } else {
+          startTTS();
+        }
+      } catch (e) {
+        if (fallbackTimer) clearTimeout(fallbackTimer);
+        triggerFallbackOnce();
+      }
+    }
+
+    /**
+     * EFFETTI SONORI ARCADE (Web Audio API)
+     */
+    function playTone(type) {
+      if (!soundEnabled) return;
+      unlockAllAudio();
+      if (!audioCtx) return;
+
+      try {
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'pickup') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(340, now);
+          osc.frequency.exponentialRampToValueAtTime(560, now + 0.08);
+          gain.gain.setValueAtTime(0.14, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+          osc.start(now);
+          osc.stop(now + 0.09);
+        } else if (type === 'drop') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.exponentialRampToValueAtTime(95, now + 0.11);
+          gain.gain.setValueAtTime(0.20, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.11);
+          osc.start(now);
+          osc.stop(now + 0.12);
+        } else if (type === 'rotate') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(420, now);
+          osc.frequency.exponentialRampToValueAtTime(680, now + 0.09);
+          gain.gain.setValueAtTime(0.14, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.09);
+          osc.start(now);
+          osc.stop(now + 0.10);
+        } else if (type === 'clear') {
+          const freqs = [523.25, 659.25, 783.99, 1046.50];
+          freqs.forEach((f, idx) => {
+            const o = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            o.type = 'triangle';
+            o.frequency.setValueAtTime(f, now + idx * 0.045);
+            g.gain.setValueAtTime(0.13, now + idx * 0.045);
+            g.gain.exponentialRampToValueAtTime(0.005, now + idx * 0.045 + 0.26);
+            o.connect(g);
+            g.connect(audioCtx.destination);
+            o.start(now + idx * 0.045);
+            o.stop(now + idx * 0.045 + 0.28);
+          });
+        } else if (type === 'bomb') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(140, now);
+          osc.frequency.exponentialRampToValueAtTime(32, now + 0.42);
+          gain.gain.setValueAtTime(0.28, now);
+          gain.gain.exponentialRampToValueAtTime(0.005, now + 0.42);
+          osc.start(now);
+          osc.stop(now + 0.44);
+        } else if (type === 'gameover') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(260, now);
+          osc.frequency.linearRampToValueAtTime(110, now + 0.42);
+          gain.gain.setValueAtTime(0.18, now);
+          gain.gain.exponentialRampToValueAtTime(0.005, now + 0.42);
+          osc.start(now);
+          osc.stop(now + 0.44);
+        }
+      } catch (e) {}
+    }
+
+    /**
+     * MOSTRA IL FUMETTO ANIMATO E PRONUNCIA UNA DELLE 7 FRASI PIEMONTESI
+     */
+    function triggerLineClearCelebration(linesCleared, pointsEarned) {
+      let idx;
+      do {
+        idx = Math.floor(Math.random() * LINE_CLEAR_PHRASES.length);
+      } while (idx === lastPhraseIndex && LINE_CLEAR_PHRASES.length > 1);
+      lastPhraseIndex = idx;
+
+      const phraseObj = LINE_CLEAR_PHRASES[idx];
+
+      dialectTextEl.textContent = phraseObj.display;
+      dialectSubEl.textContent = linesCleared > 1
+        ? `COMBO x${linesCleared}! +${pointsEarned} PUNTI`
+        : `+${pointsEarned} PUNTI`;
+
+      dialectBannerEl.classList.remove('show');
+      void dialectBannerEl.offsetWidth;
+      dialectBannerEl.classList.add('show');
+
+      // Breve ritardo di 120ms per far emergere la voce sopra l'effetto sonoro della linea
+      setTimeout(() => {
+        speakDialectPhrase(phraseObj, false);
+      }, 120);
+    }
+
+    /**
+     * PARTICELLE VISIVE ESPLOSIVE
+     */
+    function spawnCellParticles(cellEl, colorClass) {
+      if (!cellEl) return;
+      const rect = cellEl.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const colorMap = {
+        red: '#ff5252',
+        orange: '#ffab40',
+        yellow: '#ffff00',
+        green: '#69f0ae',
+        blue: '#448aff',
+        purple: '#e040fb',
+        pink: '#ff80ab'
+      };
+      const dotColor = colorMap[colorClass] || '#fde047';
+
+      for (let i = 0; i < 4; i++) {
+        const p = document.createElement('div');
+        p.className = 'spark-particle';
+        p.style.left = `${cx}px`;
+        p.style.top = `${cy}px`;
+        p.style.backgroundColor = dotColor;
+        p.style.boxShadow = `0 0 6px ${dotColor}`;
+        const angle = (Math.PI * 2 * i) / 4 + (Math.random() * 0.6);
+        const dist = 24 + Math.random() * 30;
+        p.style.setProperty('--dx', `${Math.cos(angle) * dist}px`);
+        p.style.setProperty('--dy', `${Math.sin(angle) * dist}px`);
+        particlesLayerEl.appendChild(p);
+        setTimeout(() => p.remove(), 580);
+      }
+    }
+
+    /**
+     * INIZIALIZZAZIONE SCACCHIERA E PARTITA
+     */
+    function initGame() {
+      board = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));
+      score = 0;
+      dragging.active = false;
+      dragProxyEl.style.display = 'none';
+      updateScoreUI();
+
+      gameoverModalEl.classList.add('hidden');
+      gameoverModalEl.classList.remove('flex');
+      gameoverModalEl.style.pointerEvents = 'none';
+
+      buildGridDOM();
+      generateTrayPieces();
+      renderBoard();
+    }
+
+    function buildGridDOM() {
+      gridEl.innerHTML = '';
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.dataset.row = r;
+          cell.dataset.col = c;
+          gridEl.appendChild(cell);
+        }
+      }
+    }
+
+    function updateScoreUI() {
+      scoreEl.textContent = score;
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('blockPuzzlePiemonteHigh', String(highScore));
+      }
+      highScoreEl.textContent = highScore;
+    }
+
+    /**
+     * GENERAZIONE E ROTAZIONE DEI 3 PEZZI NEL VASSOIO
+     */
+    function generateTrayPieces() {
+      for (let i = 0; i < 3; i++) {
+        const shape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+        const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+
+        // 18% probabilità di includere la bomba 3x3 con miccia e contatore
+        let bombCell = null;
+        if (Math.random() < 0.18) {
+          const filledCells = [];
+          shape.forEach((row, r) => row.forEach((val, c) => {
+            if (val) filledCells.push({ r, c });
+          }));
+          if (filledCells.length > 0) {
+            bombCell = filledCells[Math.floor(Math.random() * filledCells.length)];
+          }
+        }
+
+        trayPieces[i] = { shape, color, bombCell };
+      }
+      renderTray();
+    }
+
+    function rotateTrayPieces() {
+      if (dragging.active) return;
+      let rotatedAny = false;
+
+      for (let i = 0; i < 3; i++) {
+        const piece = trayPieces[i];
+        if (!piece) continue;
+
+        const rows = piece.shape.length;
+        const cols = piece.shape[0].length;
+        const newShape = Array.from({ length: cols }, () => Array(rows).fill(0));
+
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            newShape[c][rows - 1 - r] = piece.shape[r][c];
+          }
+        }
+
+        let newBombCell = null;
+        if (piece.bombCell) {
+          newBombCell = {
+            r: piece.bombCell.c,
+            c: rows - 1 - piece.bombCell.r
+          };
+        }
+
+        trayPieces[i] = {
+          shape: newShape,
+          color: piece.color,
+          bombCell: newBombCell
+        };
+        rotatedAny = true;
+      }
+
+      if (rotatedAny) {
+        playTone('rotate');
+        renderTray();
+        if (isGameOver()) {
+          triggerGameOver();
+        }
+      }
+    }
+
+    function createBlockElement(color, hasBomb = false, bombTimer = null) {
+      const div = document.createElement('div');
+      div.className = `gem-block gem-${color}`;
+      if (hasBomb) {
+        const badge = document.createElement('div');
+        badge.className = 'bomb-badge';
+        const spark = document.createElement('div');
+        spark.className = 'bomb-spark';
+        badge.appendChild(spark);
+        if (bombTimer !== null) {
+          const num = document.createElement('span');
+          num.className = 'bomb-timer';
+          num.textContent = bombTimer;
+          badge.appendChild(num);
+        }
+        div.appendChild(badge);
+      }
+      return div;
+    }
+
+    function renderTray() {
+      slotEls.forEach((slotEl, index) => {
+        slotEl.innerHTML = '';
+        const piece = trayPieces[index];
+        if (!piece) {
+          slotEl.onpointerdown = null;
+          slotEl.ontouchstart = null;
+          slotEl.onmousedown = null;
+          return;
+        }
+
+        const rows = piece.shape.length;
+        const cols = piece.shape[0].length;
+        const miniSize = Math.min(20, Math.floor(74 / Math.max(rows, cols)));
+
+        const pieceContainer = document.createElement('div');
+        pieceContainer.className = 'piece-item pointer-events-none transition-transform duration-150';
+        pieceContainer.style.display = 'grid';
+        pieceContainer.style.gridTemplateColumns = `repeat(${cols}, ${miniSize}px)`;
+        pieceContainer.style.gridTemplateRows = `repeat(${rows}, ${miniSize}px)`;
+        pieceContainer.style.gap = '2px';
+
+        if (!canPieceFitAnywhere(piece)) {
+          pieceContainer.style.opacity = '0.42';
+        }
+
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const cellWrap = document.createElement('div');
+            if (piece.shape[r][c]) {
+              const isBomb = piece.bombCell && piece.bombCell.r === r && piece.bombCell.c === c;
+              cellWrap.appendChild(createBlockElement(piece.color, isBomb));
+            }
+            pieceContainer.appendChild(cellWrap);
+          }
+        }
+
+        slotEl.appendChild(pieceContainer);
+
+        const handleStart = (clientX, clientY, isTouch) => {
+          if (dragging.active) return;
+          startDrag(clientX, clientY, index, pieceContainer, isTouch);
+        };
+
+        slotEl.onpointerdown = (e) => {
+          if (e.button !== undefined && e.button !== 0 && e.pointerType === 'mouse') return;
+          e.preventDefault();
+          handleStart(e.clientX, e.clientY, e.pointerType !== 'mouse');
+        };
+
+        slotEl.ontouchstart = (e) => {
+          if (e.touches && e.touches.length > 0) {
+            e.preventDefault();
+            handleStart(e.touches[0].clientX, e.touches[0].clientY, true);
+          }
+        };
+
+        slotEl.onmousedown = (e) => {
+          if (e.button !== 0) return;
+          e.preventDefault();
+          handleStart(e.clientX, e.clientY, false);
+        };
+      });
+    }
+
+    /**
+     * RENDERING DELLA GRIGLIA PRINCIPALE
+     */
+    function renderBoard() {
+      const cells = gridEl.children;
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          const cellEl = cells[r * GRID_SIZE + c];
+          cellEl.innerHTML = '';
+          cellEl.classList.remove('line-highlight');
+
+          const data = board[r][c];
+          if (data) {
+            cellEl.appendChild(createBlockElement(data.color, data.bomb !== null, data.bomb));
+          }
+        }
+      }
+    }
+
+    /**
+     * TRASCINAMENTO FLUIDO TOUCH E MOUSE CON ALLINEAMENTO 1:1 ALLA SCACCHIERA
+     */
+    function getGridMetrics() {
+      const cells = gridEl.children;
+      if (cells.length >= GRID_SIZE * GRID_SIZE) {
+        const c00 = cells[0].getBoundingClientRect();
+        const c01 = cells[1].getBoundingClientRect();
+        const c10 = cells[GRID_SIZE].getBoundingClientRect();
+
+        const cellW = c00.width;
+        const cellH = c00.height;
+        const stepX = c01.left - c00.left;
+        const stepY = c10.top - c00.top;
+        const gapX = Math.max(0, stepX - cellW);
+        const gapY = Math.max(0, stepY - cellH);
+
+        return {
+          originX: c00.left,
+          originY: c00.top,
+          cellW,
+          cellH,
+          stepX,
+          stepY,
+          gapX,
+          gapY
+        };
+      }
+      const gridRect = gridEl.getBoundingClientRect();
+      const gap = 3;
+      const cellSize = (gridRect.width - (GRID_SIZE - 1) * gap) / GRID_SIZE;
+      return {
+        originX: gridRect.left,
+        originY: gridRect.top,
+        cellW: cellSize,
+        cellH: cellSize,
+        stepX: cellSize + gap,
+        stepY: cellSize + gap,
+        gapX: gap,
+        gapY: gap
+      };
+    }
+
+    function startDrag(clientX, clientY, slotIndex, pieceEl, isTouch) {
+      const piece = trayPieces[slotIndex];
+      if (!piece) return;
+
+      unlockAllAudio();
+      playTone('pickup');
+
+      const metrics = getGridMetrics();
+      const rows = piece.shape.length;
+      const cols = piece.shape[0].length;
+
+      dragging = {
+        active: true,
+        slotIndex,
+        piece,
+        cellW: metrics.cellW,
+        cellH: metrics.cellH,
+        stepX: metrics.stepX,
+        stepY: metrics.stepY,
+        gapX: metrics.gapX,
+        gapY: metrics.gapY,
+        targetRow: null,
+        targetCol: null,
+        isTouch
+      };
+
+      pieceEl.style.visibility = 'hidden';
+
+      dragProxyEl.innerHTML = '';
+      dragProxyEl.style.display = 'grid';
+      dragProxyEl.style.gridTemplateColumns = `repeat(${cols}, ${metrics.cellW}px)`;
+      dragProxyEl.style.gridTemplateRows = `repeat(${rows}, ${metrics.cellH}px)`;
+      dragProxyEl.style.columnGap = `${metrics.gapX}px`;
+      dragProxyEl.style.rowGap = `${metrics.gapY}px`;
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const cellWrap = document.createElement('div');
+          if (piece.shape[r][c]) {
+            const isBomb = piece.bombCell && piece.bombCell.r === r && piece.bombCell.c === c;
+            cellWrap.appendChild(createBlockElement(piece.color, isBomb));
+          }
+          dragProxyEl.appendChild(cellWrap);
+        }
+      }
+
+      updateDragPosition(clientX, clientY);
+    }
+
+    function updateDragPosition(clientX, clientY) {
+      if (!dragging.active) return;
+
+      const metrics = getGridMetrics();
+      const rows = dragging.piece.shape.length;
+      const cols = dragging.piece.shape[0].length;
+
+      const proxyWidth = cols * metrics.cellW + Math.max(0, cols - 1) * metrics.gapX;
+      const proxyHeight = rows * metrics.cellH + Math.max(0, rows - 1) * metrics.gapY;
+
+      // Offset verticale costante su touch per non coprire il pezzo col dito
+      const fingerOffsetY = dragging.isTouch ? 75 : 0;
+
+      // Coordinate esatte dell'angolo in alto a sinistra del pezzo trascinato
+      const pieceLeft = clientX - proxyWidth / 2;
+      const pieceTop = clientY - fingerOffsetY - proxyHeight / 2;
+
+      dragProxyEl.style.left = `${pieceLeft}px`;
+      dragProxyEl.style.top = `${pieceTop}px`;
+
+      // Calcolo diretto della cella (row, col) rispetto a cell[0][0]
+      const col = Math.round((pieceLeft - metrics.originX) / metrics.stepX);
+      const row = Math.round((pieceTop - metrics.originY) / metrics.stepY);
+
+      renderBoard();
+
+      if (canPlacePiece(dragging.piece, row, col)) {
+        dragging.targetRow = row;
+        dragging.targetCol = col;
+        drawGhostAndPreview(dragging.piece, row, col);
+      } else {
+        dragging.targetRow = null;
+        dragging.targetCol = null;
+      }
+    }
+
+    function drawGhostAndPreview(piece, startRow, startCol) {
+      const cells = gridEl.children;
+
+      for (let r = 0; r < piece.shape.length; r++) {
+        for (let c = 0; c < piece.shape[0].length; c++) {
+          if (piece.shape[r][c]) {
+            const gr = startRow + r;
+            const gc = startCol + c;
+            const cellEl = cells[gr * GRID_SIZE + gc];
+            const isBomb = piece.bombCell && piece.bombCell.r === r && piece.bombCell.c === c;
+            const ghost = createBlockElement(piece.color, isBomb);
+            ghost.classList.add('ghost-valid');
+            cellEl.appendChild(ghost);
+          }
+        }
+      }
+
+      const simBoard = board.map(row => [...row]);
+      for (let r = 0; r < piece.shape.length; r++) {
+        for (let c = 0; c < piece.shape[0].length; c++) {
+          if (piece.shape[r][c]) {
+            simBoard[startRow + r][startCol + c] = { color: piece.color, bomb: null };
+          }
+        }
+      }
+
+      const fullRows = [];
+      const fullCols = [];
+      for (let r = 0; r < GRID_SIZE; r++) {
+        if (simBoard[r].every(cell => cell !== null)) fullRows.push(r);
+      }
+      for (let c = 0; c < GRID_SIZE; c++) {
+        let full = true;
+        for (let r = 0; r < GRID_SIZE; r++) {
+          if (simBoard[r][c] === null) { full = false; break; }
+        }
+        if (full) fullCols.push(c);
+      }
+
+      fullRows.forEach(r => {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          cells[r * GRID_SIZE + c].classList.add('line-highlight');
+        }
+      });
+      fullCols.forEach(c => {
+        for (let r = 0; r < GRID_SIZE; r++) {
+          cells[r * GRID_SIZE + c].classList.add('line-highlight');
+        }
+      });
+    }
+
+    function endDrag() {
+      if (!dragging.active) return;
+
+      dragProxyEl.style.display = 'none';
+      const { slotIndex, piece, targetRow, targetCol } = dragging;
+      dragging.active = false;
+
+      if (targetRow !== null && targetCol !== null && canPlacePiece(piece, targetRow, targetCol)) {
+        placePiece(piece, targetRow, targetCol);
+        trayPieces[slotIndex] = null;
+
+        if (trayPieces.every(p => p === null)) {
+          generateTrayPieces();
+        } else {
+          renderTray();
+        }
+
+        setTimeout(() => {
+          if (isGameOver()) {
+            triggerGameOver();
+          }
+        }, 380);
+      } else {
+        renderBoard();
+        renderTray();
+      }
+    }
+
+    window.addEventListener('pointermove', (e) => {
+      if (dragging.active) {
+        e.preventDefault();
+        updateDragPosition(e.clientX, e.clientY);
+      }
+    }, { passive: false });
+
+    window.addEventListener('touchmove', (e) => {
+      if (dragging.active && e.touches && e.touches.length > 0) {
+        e.preventDefault();
+        updateDragPosition(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    }, { passive: false });
+
+    window.addEventListener('mousemove', (e) => {
+      if (dragging.active) {
+        updateDragPosition(e.clientX, e.clientY);
+      }
+    });
+
+    window.addEventListener('pointerup', endDrag);
+    window.addEventListener('pointercancel', endDrag);
+    window.addEventListener('touchend', endDrag);
+    window.addEventListener('touchcancel', endDrag);
+    window.addEventListener('mouseup', endDrag);
+
+    /**
+     * LOGICA DI PIAZZAMENTO, LINE CLEAR E BOMBA 3x3
+     */
+    function canPlacePiece(piece, startRow, startCol) {
+      for (let r = 0; r < piece.shape.length; r++) {
+        for (let c = 0; c < piece.shape[0].length; c++) {
+          if (piece.shape[r][c]) {
+            const gr = startRow + r;
+            const gc = startCol + c;
+            if (gr < 0 || gr >= GRID_SIZE || gc < 0 || gc >= GRID_SIZE) {
+              return false;
+            }
+            if (board[gr][gc] !== null) {
+              return false;
+            }
+          }
+        }
+      }
+      return true;
+    }
+
+    function canPieceFitAnywhere(piece) {
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          if (canPlacePiece(piece, r, c)) return true;
+        }
+      }
+      return false;
+    }
+
+    function placePiece(piece, startRow, startCol) {
+      let placedBlocksCount = 0;
+
+      for (let r = 0; r < piece.shape.length; r++) {
+        for (let c = 0; c < piece.shape[0].length; c++) {
+          if (piece.shape[r][c]) {
+            const gr = startRow + r;
+            const gc = startCol + c;
+            const isBomb = piece.bombCell && piece.bombCell.r === r && piece.bombCell.c === c;
+            board[gr][gc] = {
+              color: piece.color,
+              bomb: isBomb ? 9 : null
+            };
+            placedBlocksCount++;
+          }
+        }
+      }
+
+      playTone('drop');
+      score += placedBlocksCount * 10;
+
+      updateBombsAndCheckLines();
+    }
+
+    function updateBombsAndCheckLines() {
+      const fullRows = [];
+      const fullCols = [];
+
+      for (let r = 0; r < GRID_SIZE; r++) {
+        if (board[r].every(cell => cell !== null)) fullRows.push(r);
+      }
+      for (let c = 0; c < GRID_SIZE; c++) {
+        let isColFull = true;
+        for (let r = 0; r < GRID_SIZE; r++) {
+          if (board[r][c] === null) {
+            isColFull = false;
+            break;
+          }
+        }
+        if (isColFull) fullCols.push(c);
+      }
+
+      const cellsToClear = new Set();
+      let bombTriggered = false;
+
+      fullRows.forEach(r => {
+        for (let c = 0; c < GRID_SIZE; c++) cellsToClear.add(`${r},${c}`);
+      });
+      fullCols.forEach(c => {
+        for (let r = 0; r < GRID_SIZE; r++) cellsToClear.add(`${r},${c}`);
+      });
+
+      // Esplosione 3x3 se una bomba viene eliminata in una linea
+      Array.from(cellsToClear).forEach(coord => {
+        const [r, c] = coord.split(',').map(Number);
+        if (board[r][c] && board[r][c].bomb !== null) {
+          bombTriggered = true;
+          for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+              const nr = r + dr;
+              const nc = c + dc;
+              if (nr >= 0 && nr < GRID_SIZE && nc >= 0 && nc < GRID_SIZE) {
+                cellsToClear.add(`${nr},${nc}`);
+              }
+            }
+          }
+        }
+      });
+
+      // Decrementa il contatore delle bombe rimaste in griglia
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          if (board[r][c] && board[r][c].bomb !== null && !cellsToClear.has(`${r},${c}`)) {
+            board[r][c].bomb -= 1;
+            if (board[r][c].bomb <= 0) {
+              bombTriggered = true;
+              for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                  const nr = r + dr;
+                  const nc = c + dc;
+                  if (nr >= 0 && nr < GRID_SIZE && nc >= 0 && nc < GRID_SIZE) {
+                    cellsToClear.add(`${nr},${nc}`);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      const totalLines = fullRows.length + fullCols.length;
+
+      if (cellsToClear.size > 0) {
+        renderBoard();
+
+        const gridCells = gridEl.children;
+        cellsToClear.forEach(coord => {
+          const [r, c] = coord.split(',').map(Number);
+          const cellEl = gridCells[r * GRID_SIZE + c];
+          const blockEl = cellEl.querySelector('.gem-block');
+          if (blockEl) blockEl.classList.add('clearing');
+          if (board[r][c]) {
+            spawnCellParticles(cellEl, board[r][c].color);
+          }
+        });
+
+        if (bombTriggered) {
+          playTone('bomb');
+          boardWrapperEl.classList.remove('shake');
+          void boardWrapperEl.offsetWidth;
+          boardWrapperEl.classList.add('shake');
+        } else {
+          playTone('clear');
+        }
+
+        const lineBonus = totalLines > 0
+          ? totalLines * 100 * totalLines
+          : cellsToClear.size * 15;
+
+        score += lineBonus;
+        updateScoreUI();
+
+        if (totalLines > 0 || bombTriggered) {
+          triggerLineClearCelebration(Math.max(1, totalLines), lineBonus);
+        }
+
+        setTimeout(() => {
+          cellsToClear.forEach(coord => {
+            const [r, c] = coord.split(',').map(Number);
+            board[r][c] = null;
+          });
+          renderBoard();
+          renderTray();
+        }, 320);
+      } else {
+        renderBoard();
+        updateScoreUI();
+      }
+    }
+
+    /**
+     * VERIFICA GAME OVER ("Ma cot fas?!")
+     */
+    function isGameOver() {
+      const remainingPieces = trayPieces.filter(p => p !== null);
+      if (remainingPieces.length === 0) return false;
+      return !remainingPieces.some(piece => canPieceFitAnywhere(piece));
+    }
+
+    function triggerGameOver() {
+      playTone('gameover');
+      setTimeout(() => {
+        speakDialectPhrase(GAME_OVER_PHRASE, true);
+      }, 150);
+
+      document.getElementById('final-score').textContent = score;
+      document.getElementById('final-highscore').textContent = highScore;
+
+      gameoverModalEl.classList.remove('hidden');
+      gameoverModalEl.classList.add('flex');
+      gameoverModalEl.style.pointerEvents = 'auto';
+    }
+
+    /**
+     * GESTIONE PULSANTI INTERATTIVI
+     */
+    function bindTapButton(el, handler) {
+      if (!el) return;
+      let locked = false;
+      const execute = (e) => {
+        if (e) e.preventDefault();
+        if (locked) return;
+        locked = true;
+        setTimeout(() => { locked = false; }, 200);
+        handler();
+      };
+      el.addEventListener('pointerdown', execute);
+      el.addEventListener('click', execute);
+    }
+
+    bindTapButton(document.getElementById('btn-test-voice'), () => {
+      soundEnabled = true;
+      document.getElementById('icon-sound-on').classList.remove('hidden');
+      document.getElementById('icon-sound-off').classList.add('hidden');
+      unlockAllAudio();
+      updateAudioStatusBadge("🔊 Audio OK • Voce piemontese attiva", true);
+      triggerLineClearCelebration(1, 100);
+    });
+
+    bindTapButton(document.getElementById('btn-sound'), () => {
+      soundEnabled = !soundEnabled;
+      document.getElementById('icon-sound-on').classList.toggle('hidden', !soundEnabled);
+      document.getElementById('icon-sound-off').classList.toggle('hidden', soundEnabled);
+      if (soundEnabled) {
+        unlockAllAudio();
+        updateAudioStatusBadge("🔊 Audio OK • Voce piemontese attiva", true);
+      } else {
+        updateAudioStatusBadge("🔇 Audio disattivato", false);
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+        }
+      }
+    });
+
+    bindTapButton(document.getElementById('btn-rotate'), () => {
+      unlockAllAudio();
+      rotateTrayPieces();
+    });
+
+    bindTapButton(document.getElementById('btn-restart'), () => {
+      unlockAllAudio();
+      initGame();
+    });
+
+    bindTapButton(document.getElementById('btn-play-again'), () => {
+      unlockAllAudio();
+      initGame();
+    });
+
+    // Avvio del gioco
+    initGame();
+  </script>
+</body>
+</html>
